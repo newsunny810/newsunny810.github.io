@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>金吉利變額萬能壽險試算工具</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", sans-serif;
+    background: #f5f4f0;
+    color: #1a1a1a;
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+  .container { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 20px; font-weight: 500; margin-bottom: 4px; color: #1a1a1a; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 1.5rem; }
+  .section { background: #fff; border: 0.5px solid rgba(0,0,0,0.12); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+  .section-title { font-size: 11px; font-weight: 500; color: #999; margin-bottom: 1rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  @media (max-width: 620px) { .grid2 { grid-template-columns: 1fr; } .grid3 { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 13px; color: #555; }
+  .field .val { font-size: 14px; font-weight: 500; color: #1a1a1a; }
+  input[type=number] { width: 100%; padding: 8px 10px; border: 0.5px solid rgba(0,0,0,0.18); border-radius: 8px; font-size: 14px; color: #1a1a1a; background: #fff; outline: none; font-family: inherit; transition: border-color 0.15s; }
+  input[type=number]:focus { border-color: rgba(0,0,0,0.4); }
+  input[type=number].warn { border-color: #e07800; background: #fff9f0; }
+  input[type=number].error { border-color: #c0392b; background: #fff5f5; }
+  input[type=range] { width: 100%; accent-color: #1D9E75; cursor: pointer; }
+  .toggle-wrap { display: flex; border: 0.5px solid rgba(0,0,0,0.18); border-radius: 8px; overflow: hidden; width: fit-content; }
+  .toggle-btn { padding: 7px 22px; font-size: 14px; cursor: pointer; background: transparent; border: none; color: #888; font-family: inherit; transition: background 0.15s, color 0.15s; }
+  .toggle-btn.active { background: #f0f0ec; color: #1a1a1a; font-weight: 500; }
+  .toggle-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .type-badge { display: inline-flex; align-items: center; font-size: 12px; border-radius: 6px; padding: 5px 10px; margin-top: 8px; font-weight: 500; }
+  .type-c { background: rgba(29,158,117,0.1); color: #1D9E75; }
+  .type-b { background: rgba(55,138,221,0.1); color: #378ADD; }
+  .type-locked { background: rgba(180,80,0,0.1); color: #b45000; }
+  .fee-badge { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; color: #888; background: #f8f7f3; border-radius: 8px; padding: 8px 12px; margin-top: 14px; }
+  .fee-badge span { color: #333; font-weight: 500; }
+  .note { font-size: 12px; color: #888; background: #f8f7f3; border-radius: 8px; padding: 10px 14px; margin-top: 12px; line-height: 1.9; }
+
+  /* 保費範圍提示區 */
+  .prem-range-box { margin-top: 12px; border-radius: 8px; padding: 10px 14px; font-size: 13px; line-height: 1.9; }
+  .prem-range-ok { background: rgba(29,158,117,0.08); border: 0.5px solid rgba(29,158,117,0.3); color: #1a6b50; }
+  .prem-range-low { background: rgba(192,57,43,0.07); border: 0.5px solid rgba(192,57,43,0.3); color: #922b21; }
+  .prem-range-high { background: rgba(224,120,0,0.08); border: 0.5px solid rgba(224,120,0,0.3); color: #7d4800; }
+  .prem-range-box strong { font-weight: 600; }
+
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 1rem; }
+  .metric { background: #f5f4f0; border-radius: 8px; padding: 0.85rem 1rem; }
+  .metric .mlabel { font-size: 12px; color: #888; margin-bottom: 4px; }
+  .metric .mval { font-size: 22px; font-weight: 500; color: #1a1a1a; }
+  .chart-wrap { position: relative; width: 100%; height: 260px; margin-bottom: 1rem; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: #888; margin-bottom: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 12px; height: 3px; border-radius: 2px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 760px; }
+  thead th { font-weight: 500; font-size: 11px; color: #888; text-align: right; padding: 7px 7px; border-bottom: 0.5px solid rgba(0,0,0,0.1); white-space: nowrap; }
+  thead th:first-child { text-align: left; }
+  tbody tr:hover td { background: #fafaf8; }
+  tbody td { padding: 6px 7px; text-align: right; color: #1a1a1a; border-bottom: 0.5px solid rgba(0,0,0,0.07); white-space: nowrap; }
+  tbody td:first-child { text-align: left; font-weight: 500; }
+  .depleted { color: #c0392b; }
+  .fee-col { color: #c0762b; }
+  .muted { color: #bbb; }
+  footer { text-align: center; font-size: 12px; color: #bbb; margin-top: 2rem; padding-top: 1rem; border-top: 0.5px solid rgba(0,0,0,0.08); line-height: 1.8; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>金吉利變額萬能壽險試算工具</h1>
+  <p class="subtitle">遠雄人壽 · 僅供規劃參考，實際保單以核保結果為準</p>
+
+  <div class="section">
+    <div class="section-title">基本設定</div>
+    <div class="grid2">
+      <div class="field">
+        <label>性別</label>
+        <div class="toggle-wrap">
+          <button class="toggle-btn active" id="btn-male" onclick="setGender('male')">男性</button>
+          <button class="toggle-btn" id="btn-female" onclick="setGender('female')">女性</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>保險型別</label>
+        <div class="toggle-wrap">
+          <button class="toggle-btn active" id="btn-c" onclick="setType('c')">丙型</button>
+          <button class="toggle-btn" id="btn-b" onclick="setType('b')">乙型</button>
+        </div>
+        <div id="type-badge" class="type-badge type-c">身故金 = max(保額, 帳戶價值)｜15–64 歲適用</div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>投保年齡</label>
+        <input type="range" id="age" min="15" max="85" value="35" step="1" oninput="update()">
+        <div class="val" id="age-disp">35 歲</div>
+      </div>
+      <div class="field">
+        <label>試算年限</label>
+        <input type="range" id="years" min="5" max="40" value="20" step="1" oninput="update()">
+        <div class="val" id="years-disp">20 年</div>
+      </div>
+    </div>
+    <div class="grid3">
+      <div class="field">
+        <label>基本保額（萬元）</label>
+        <input type="number" id="suma" value="200" min="10" step="10" oninput="update()">
+      </div>
+      <div class="field">
+        <label>每月目標保費（元）</label>
+        <input type="number" id="premium" value="5000" min="0" step="500" oninput="update()">
+      </div>
+      <div class="field">
+        <label>年化報酬率（%）</label>
+        <input type="number" id="rate" value="6" min="-5" max="30" step="0.5" oninput="update()">
+      </div>
+    </div>
+
+    <!-- 保費範圍提示 -->
+    <div id="prem-range-box" class="prem-range-box prem-range-ok"></div>
+
+    <div class="fee-badge">
+      保費費用率：<span>第1年 60%</span><span>第2年 30%</span><span>第3年 20%</span><span>第4年 20%</span><span>第5年 20%</span><span>第6年起 0%</span>
+    </div>
+    <div class="note" id="type-note">
+      ＊ 丙型：淨危險保額 = max(0, 保額 − 帳戶價值)，保險成本隨帳戶成長遞減。<br>
+      ＊ 身故金 = max(保額, 帳戶價值)。<br>
+      ＊ 投保年齡 65 歲以上自動切換為乙型。
+    </div>
+  </div>
+
+  <div class="metrics" id="metrics"></div>
+
+  <div class="section">
+    <div class="section-title">逐年試算結果</div>
+    <div class="legend">
+      <span class="legend-item"><span class="legend-dot" style="background:#1D9E75;"></span>帳戶價值</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#378ADD;"></span>身故保障</span>
+      <span class="legend-item"><span class="legend-dot" style="background:#bbb;"></span>累計保費</span>
+    </div>
+    <div class="chart-wrap"><canvas id="chart" role="img" aria-label="逐年帳戶價值與身故保障折線圖"></canvas></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>年度</th><th>年齡</th><th>累積保費</th><th>保費費用</th>
+            <th>年末帳戶價值</th><th>身故保障</th><th>淨危險保額均值</th>
+            <th>當年保險成本</th><th>當年管理費</th><th>累計費用合計</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>
+    本試算工具依遠雄人壽金吉利變額萬能壽險(112)條款計算<br>
+    保費費用依附表三・保險成本依附表五・目標保費範圍依商品說明書・數據僅供參考，請以保險公司核保結果為準
+  </footer>
+</div>
+
+<script>
+// ── 保險成本費率（附表五）─────────────────────────────
+const COC_MALE = {15:0.2467,16:0.2825,17:0.3150,18:0.3417,19:0.3625,20:0.3600,21:0.3725,22:0.3825,23:0.3883,24:0.3933,25:0.4133,26:0.4200,27:0.4317,28:0.4483,29:0.4708,30:0.5475,31:0.5817,32:0.6242,33:0.6733,34:0.7308,35:0.8142,36:0.8858,37:0.9667,38:1.0567,39:1.1550,40:1.2733,41:1.3883,42:1.5108,43:1.6433,44:1.7842,45:2.0142,46:2.1725,47:2.3408,48:2.5192,49:2.7083,50:2.8850,51:3.0967,52:3.3225,53:3.5633,54:3.8208,55:4.2167,56:4.5133,57:4.8350,58:5.1850,59:5.5650,60:6.2175,61:6.6708,62:7.1750,63:7.7358,64:8.3667,65:9.3858,66:10.1942,67:11.1225,68:12.1775,69:13.3617,70:15.4233,71:16.8550,72:18.4250,73:20.1392,74:22.0175,75:23.9033,76:26.1658,77:28.6608,78:31.4050,79:34.4025,80:37.6492,81:41.1492,82:44.9325,83:49.0392,84:53.5283,85:58.4625,86:63.8992,87:69.8850,88:76.2525,89:82.9608,90:90.6783,91:99.6017,92:108.4500,93:118.0958,94:128.6108,95:140.0733,96:152.5692,97:166.1908,98:181.0400,99:197.2275,100:214.8742,101:233.5550,102:252.8167,103:273.2842,104:294.9467,105:833.3333};
+const COC_FEM  = {15:0.1083,16:0.1200,17:0.1308,18:0.1408,19:0.1508,20:0.1483,21:0.1558,22:0.1633,23:0.1692,24:0.1742,25:0.2000,26:0.2075,27:0.2167,28:0.2292,29:0.2442,30:0.2608,31:0.2792,32:0.2983,33:0.3192,34:0.3408,35:0.3683,36:0.3950,37:0.4250,38:0.4583,39:0.4950,40:0.5450,41:0.5883,42:0.6358,43:0.6858,44:0.7400,45:0.8475,46:0.9100,47:0.9767,48:1.0492,49:1.1267,50:1.1867,51:1.2733,52:1.3650,53:1.4608,54:1.5633,55:1.7958,56:1.9208,57:2.0625,58:2.2233,59:2.4058,60:2.7692,61:3.0000,62:3.2650,63:3.5667,64:3.9142,65:4.6658,66:5.1233,67:5.6550,68:6.2667,69:6.9667,70:8.0950,71:9.0008,72:10.0358,73:11.2100,74:12.5358,75:13.6083,76:15.2633,77:17.1150,78:19.1775,79:21.4667,80:23.9892,81:26.7617,82:29.8225,83:33.2175,84:37.0142,85:41.2817,86:46.0925,87:51.5125,88:57.5975,89:64.4042,90:71.9883,91:80.4158,92:89.7617,93:100.1075,94:111.5342,95:124.1433,96:138.0350,97:153.3058,98:170.0467,99:188.3575,100:208.3150,101:229.9925,102:253.4283,103:278.6625,104:305.6692,105:833.3333};
+
+// ── 最高目標保費費率（元／每10萬元保額）────────────────
+const MAX_PREM_MALE = {15:2197,16:2240,17:2283,18:2328,19:2373,20:2418,21:2465,22:2512,23:2561,24:2610,25:2660,26:2712,27:2765,28:2820,29:2875,30:2932,31:2991,32:3051,33:3112,34:3174,35:3238,36:3304,37:3371,38:3439,39:3508,40:3579,41:3652,42:3725,43:3801,44:3877,45:3956,46:4036,47:4118,48:4201,49:4287,50:4375,51:4466,52:4560,53:4656,54:4756,55:4860,56:4968,57:5081,58:5200,59:5325,60:5456,61:5596,62:5744,63:5903,64:6073,65:6255,66:6451,67:6663,68:6892,69:7140,70:7408,71:7699,72:8017,73:8363,74:8738,75:9146,76:9590,77:10075,78:10604,79:11179,80:11804,81:12484,82:13225,83:14032,84:14909,85:15861};
+const MAX_PREM_FEM  = {15:1967,16:2005,17:2045,18:2085,19:2126,20:2168,21:2210,22:2253,23:2297,24:2342,25:2388,26:2435,27:2483,28:2531,29:2581,30:2632,31:2684,32:2737,33:2792,34:2847,35:2904,36:2961,37:3020,38:3080,39:3142,40:3204,41:3268,42:3333,43:3399,44:3467,45:3536,46:3606,47:3678,48:3751,49:3826,50:3902,51:3981,52:4061,53:4144,54:4229,55:4317,56:4409,57:4504,58:4603,59:4706,60:4814,61:4928,62:5049,63:5177,64:5313,65:5459,66:5616,67:5785,68:5969,69:6167,70:6382,71:6617,72:6875,73:7157,74:7468,75:7809,76:8186,77:8603,78:9066,79:9576,80:10140,81:10764,82:11455,83:12219,84:13061,85:13990};
+
+// ── 最低目標保費費率（元／每10萬元保額）────────────────
+const MIN_PREM_MALE = {15:45.60,16:52.20,17:58.20,18:63.12,19:66.96,20:66.48,21:68.88,22:70.68,23:71.76,24:72.72,25:76.32,26:77.64,27:79.80,28:82.80,29:87.00,30:101.16,31:107.40,32:115.32,33:124.32,34:135.00,35:150.36,36:163.56,37:178.56,38:195.12,39:213.24,40:235.08,41:256.32,42:279.00,43:303.48,44:329.40,45:371.88,46:401.16,47:432.24,48:465.12,49:500.04,50:532.68,51:571.80,52:613.44,53:657.84,54:705.48,55:778.56,56:833.28,57:892.68,58:957.24,59:1027.44,60:1147.92,61:1231.56,62:1324.68,63:1428.24,64:1544.64,65:1732.80,66:1882.08,67:2053.44,68:2248.20,69:2466.84,70:2847.48,71:3111.72,72:3401.64,73:3718.08,74:4064.88,75:4413.00,76:4830.72,77:5291.28,78:5797.92,79:6351.24,80:6950.64,81:7596.84,82:8295.24,83:9053.40,84:9882.24,85:10793.16};
+const MIN_PREM_FEM  = {15:20.04,16:22.20,17:24.24,18:26.04,19:27.84,20:27.48,21:28.80,22:30.24,23:31.32,24:32.16,25:36.96,26:38.40,27:40.08,28:42.36,29:45.12,30:48.24,31:51.60,32:55.08,33:59.04,34:63.00,35:68.04,36:72.96,37:78.48,38:84.72,39:91.44,40:100.68,41:108.72,42:117.48,43:126.72,44:136.68,45:156.48,46:168.00,47:180.36,48:193.80,49:208.08,50:219.12,51:235.08,52:252.00,53:269.76,54:288.72,55:331.56,56:354.72,57:380.88,58:410.52,59:444.24,60:511.32,61:553.92,62:602.88,63:658.56,64:722.64,65:861.48,66:945.84,67:1044.00,68:1157.04,69:1286.16,70:1494.48,71:1661.76,72:1852.80,73:2069.64,74:2314.32,75:2512.32,76:2817.84,77:3159.72,78:3540.48,79:3963.12,80:4428.84,81:4940.64,82:5505.72,83:6132.48,84:6833.40,85:7621.32};
+
+const PREM_FEE_RATES = [0, 0.60, 0.30, 0.20, 0.20, 0.20];
+
+let gender = 'male';
+let insType = 'c';
+let chartInst = null;
+
+function setGender(g) {
+  gender = g;
+  document.getElementById('btn-male').classList.toggle('active', g === 'male');
+  document.getElementById('btn-female').classList.toggle('active', g === 'female');
+  update();
+}
+function setType(t) {
+  insType = t;
+  update();
+}
+
+function getMonthlyRate(age) {
+  const tbl = gender === 'male' ? COC_MALE : COC_FEM;
+  const a = Math.min(Math.max(Math.round(age), 15), 105);
+  return tbl[a] || 833.3333;
+}
+
+// 每10萬保額的年繳費率 → 換算月繳
+function getMinMonthlyPrem(age, sumAssured) {
+  const tbl = gender === 'male' ? MIN_PREM_MALE : MIN_PREM_FEM;
+  const a = Math.min(Math.max(Math.round(age), 15), 85);
+  const ratePerHundredK = tbl[a] || 0;
+  const units = sumAssured / 100000;
+  return Math.ceil(ratePerHundredK * units / 12); // 年繳轉月繳
+}
+
+function getMaxMonthlyPrem(age, sumAssured) {
+  const tbl = gender === 'male' ? MAX_PREM_MALE : MAX_PREM_FEM;
+  const a = Math.min(Math.max(Math.round(age), 15), 85);
+  const ratePerHundredK = tbl[a] || 0;
+  const units = sumAssured / 100000;
+  return Math.floor(ratePerHundredK * units / 12); // 年繳轉月繳
+}
+
+function calcYearly(startAge, sumAssured, monthlyPrem, annualRate, numYears, type) {
+  const monthlyReturn = annualRate / 100 / 12;
+  let acct = 0;
+  const rows = [];
+  let cumCost = 0, cumMgmt = 0, cumPremFee = 0, cumPrem = 0;
+
+  for (let y = 1; y <= numYears; y++) {
+    let yearCost = 0, yearMgmt = 0, yearPremFee = 0, yearNetRisk = 0;
+    const feeRate = y <= 5 ? PREM_FEE_RATES[y] : 0;
+
+    for (let m = 1; m <= 12; m++) {
+      const insAge = Math.floor(startAge + (y - 1) + (m - 1) / 12);
+      const cocRate = getMonthlyRate(insAge);
+      const mgmt = 100;
+      const premFee = monthlyPrem * feeRate;
+      const netPrem = monthlyPrem - premFee;
+
+      acct += netPrem;
+      acct = acct * (1 + monthlyReturn);
+
+      const netRisk = type === 'c'
+        ? Math.max(0, sumAssured - acct)
+        : sumAssured;
+
+      const coc = cocRate * netRisk / 10000;
+      acct -= coc;
+      acct -= mgmt;
+
+      yearCost += coc;
+      yearMgmt += mgmt;
+      yearPremFee += premFee;
+      yearNetRisk += netRisk;
+      cumPrem += monthlyPrem;
+    }
+
+    cumCost += yearCost;
+    cumMgmt += yearMgmt;
+    cumPremFee += yearPremFee;
+
+    const deathBenefit = type === 'c'
+      ? Math.max(sumAssured, acct)
+      : sumAssured + acct;
+
+    rows.push({
+      year: y, age: startAge + y,
+      cumPrem: Math.round(cumPrem),
+      yearPremFee: Math.round(yearPremFee),
+      acct: Math.round(acct),
+      death: Math.round(deathBenefit),
+      avgNetRisk: Math.round(yearNetRisk / 12),
+      yearCost: Math.round(yearCost),
+      yearMgmt: Math.round(yearMgmt),
+      cumFee: Math.round(cumCost + cumMgmt + cumPremFee),
+      depleted: acct < 0
+    });
+
+    if (acct < 0) break;
+  }
+  return rows;
+}
+
+function fmtN(n) { return Math.round(n).toLocaleString(); }
+
+function update() {
+  const age     = parseInt(document.getElementById('age').value);
+  const suma    = parseFloat(document.getElementById('suma').value) || 0;
+  const premium = parseFloat(document.getElementById('premium').value) || 0;
+  const rate    = parseFloat(document.getElementById('rate').value) || 0;
+  const years   = parseInt(document.getElementById('years').value);
+
+  document.getElementById('age-disp').textContent   = age + ' 歲';
+  document.getElementById('years-disp').textContent = years + ' 年';
+
+  const forcedB    = age > 64;
+  const activeType = forcedB ? 'b' : insType;
+  document.getElementById('btn-c').disabled = forcedB;
+  document.getElementById('btn-c').classList.toggle('active', activeType === 'c');
+  document.getElementById('btn-b').classList.toggle('active', activeType === 'b');
+
+  const badge = document.getElementById('type-badge');
+  const note  = document.getElementById('type-note');
+  if (forcedB) {
+    badge.className = 'type-badge type-locked';
+    badge.textContent = '⚠ 投保年齡 65 歲以上，自動使用乙型';
+    note.innerHTML = '＊ 乙型：淨危險保額 = 保額（固定），保險成本不隨帳戶價值遞減。<br>＊ 身故金 = 保額 + 帳戶價值。';
+  } else if (activeType === 'c') {
+    badge.className = 'type-badge type-c';
+    badge.textContent = '身故金 = max(保額, 帳戶價值)｜15–64 歲適用';
+    note.innerHTML = '＊ 丙型：淨危險保額 = max(0, 保額 − 帳戶價值)，保險成本隨帳戶成長遞減。<br>＊ 身故金 = max(保額, 帳戶價值)。<br>＊ 投保年齡 65 歲以上自動切換為乙型。';
+  } else {
+    badge.className = 'type-badge type-b';
+    badge.textContent = '身故金 = 保額 + 帳戶價值｜保險成本以保額固定計算';
+    note.innerHTML = '＊ 乙型：淨危險保額 = 保額（固定），保險成本不隨帳戶價值遞減。<br>＊ 身故金 = 保額 + 帳戶價值。';
+  }
+
+  // ── 目標保費範圍檢查 ─────────────────────────────────
+  const sumAssured   = suma * 10000;
+  const minMonthly   = getMinMonthlyPrem(age, sumAssured);
+  const maxMonthly   = getMaxMonthlyPrem(age, sumAssured);
+  const premInput    = document.getElementById('premium');
+  const rangeBox     = document.getElementById('prem-range-box');
+
+  // 最低年繳（條文規定）
+  let minAnnualRule = 24000;
+  if (age >= 51 && age <= 60) minAnnualRule = 36000;
+  else if (age >= 61 && age <= 70) minAnnualRule = 48000;
+  else if (age >= 71) minAnnualRule = 60000;
+  const minMonthlyRule = Math.ceil(minAnnualRule / 12);
+  const effectiveMin = Math.max(minMonthly, minMonthlyRule);
+
+  if (suma > 0) {
+    if (premium < effectiveMin) {
+      premInput.className = 'error';
+      rangeBox.className = 'prem-range-box prem-range-low';
+      rangeBox.innerHTML = `⚠ <strong>保費低於最低限制</strong>｜此條件每月最低需繳 <strong>${fmtN(effectiveMin)} 元</strong>（年繳 ${fmtN(effectiveMin*12)} 元），目前輸入低於規定下限。`;
+    } else if (premium > maxMonthly) {
+      premInput.className = 'warn';
+      rangeBox.className = 'prem-range-box prem-range-high';
+      rangeBox.innerHTML = `⚠ <strong>保費超過最高目標保費</strong>｜此條件每月最高目標保費為 <strong>${fmtN(maxMonthly)} 元</strong>（年繳 ${fmtN(maxMonthly*12)} 元），超出部分可改以超額保費方式繳納。`;
+    } else {
+      premInput.className = '';
+      rangeBox.className = 'prem-range-box prem-range-ok';
+      rangeBox.innerHTML = `✓ <strong>保費在合規範圍內</strong>｜每月最低 <strong>${fmtN(effectiveMin)} 元</strong>，最高 <strong>${fmtN(maxMonthly)} 元</strong>（年繳 ${fmtN(effectiveMin*12)} – ${fmtN(maxMonthly*12)} 元）`;
+    }
+  } else {
+    rangeBox.className = 'prem-range-box prem-range-ok';
+    rangeBox.innerHTML = '';
+  }
+
+  // ── 計算 ─────────────────────────────────────────────
+  const rows = calcYearly(age, sumAssured, premium, rate, years, activeType);
+  const last = rows[rows.length - 1];
+  const totalPrem = premium * 12 * years;
+  const typeLabel = activeType === 'c' ? '丙型' : '乙型';
+
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric"><div class="mlabel">第${last.year}年末帳戶價值</div><div class="mval">${last.depleted ? '已耗盡' : (last.acct/10000).toFixed(1)+'萬'}</div></div>
+    <div class="metric"><div class="mlabel">身故保障（${typeLabel}）</div><div class="mval">${last.depleted ? '-' : (last.death/10000).toFixed(1)+'萬'}</div></div>
+    <div class="metric"><div class="mlabel">累計總保費</div><div class="mval">${(totalPrem/10000).toFixed(1)}萬</div></div>
+    <div class="metric"><div class="mlabel">累計費用合計</div><div class="mval">${last.depleted ? '-' : (last.cumFee/10000).toFixed(1)+'萬'}</div></div>
+  `;
+
+  document.getElementById('tbody').innerHTML = rows.map(r => `
+    <tr>
+      <td>${r.year}</td><td>${r.age}</td><td>${fmtN(r.cumPrem)}</td>
+      <td class="${r.yearPremFee > 0 ? 'fee-col' : 'muted'}">${r.yearPremFee > 0 ? fmtN(r.yearPremFee) : '-'}</td>
+      <td class="${r.depleted ? 'depleted' : ''}">${r.depleted ? '⚠ 保單耗盡' : fmtN(r.acct)}</td>
+      <td style="font-weight:500;">${r.depleted ? '-' : fmtN(r.death)}</td>
+      <td class="muted">${fmtN(r.avgNetRisk)}</td>
+      <td>${fmtN(r.yearCost)}</td><td>${fmtN(r.yearMgmt)}</td><td>${fmtN(r.cumFee)}</td>
+    </tr>
+  `).join('');
+
+  const labels = rows.map(r => `第${r.year}年`);
+  if (chartInst) chartInst.destroy();
+  const ctx = document.getElementById('chart').getContext('2d');
+  chartInst = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'帳戶價值', data: rows.map(r => r.depleted ? null : r.acct), borderColor:'#1D9E75', backgroundColor:'rgba(29,158,117,0.08)', tension:0.3, pointRadius:2, borderWidth:2 },
+        { label:'身故保障', data: rows.map(r => r.depleted ? null : r.death), borderColor:'#378ADD', backgroundColor:'rgba(55,138,221,0.06)', tension:0.3, pointRadius:2, borderWidth:2, borderDash:[5,3] },
+        { label:'累計保費', data: rows.map(r => r.cumPrem), borderColor:'#bbb', backgroundColor:'transparent', tension:0.3, pointRadius:2, borderWidth:1.5, borderDash:[2,4] }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{display:false}, tooltip:{ callbacks:{ label: c => c.dataset.label+': '+(c.raw!=null ? Math.round(c.raw).toLocaleString()+' 元' : '-') } } },
+      scales: {
+        y: { ticks:{ callback: v => (v/10000).toFixed(0)+'萬', font:{size:11} }, grid:{ color:'rgba(0,0,0,0.05)' } },
+        x: { ticks:{ maxRotation:45, font:{size:11}, autoSkip:true, maxTicksLimit:15 } }
+      }
+    }
+  });
+}
+
+update();
+</script>
+</body>
+</html>
